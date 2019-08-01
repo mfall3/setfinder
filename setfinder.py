@@ -1,6 +1,5 @@
 # utility to find datasets in figshare related to articles with creators affiliated with the University of Illinois at Urbana-Champaign
 # by Colleen Fallaw at University of Illinois Urbana-Champaign 2019
-# license: CC0
 
 import logging
 import sys
