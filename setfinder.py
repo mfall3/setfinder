@@ -105,11 +105,9 @@ def related_identifiers(doi):
         with urllib.request.urlopen(endpoint + urllib.parse.quote(doi)) as url:
             data = json.loads(url.read().decode())
             if data is None:
-                msg = "data was None in related_dois for " + doi
-                sys.exit(msg)
-            results = data.get("result")
-            if results is None:
+                LOGGER.warning("data was None in related_dois for %s", doi)
                 return None
+            results = data.get("result")
             if not results:
                 return None
             for result in results:
