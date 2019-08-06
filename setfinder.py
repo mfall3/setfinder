@@ -39,8 +39,8 @@ def crossref_batch(cursor):
             dois.append(item.get("DOI"))
         new_next_cursor = data.get("message").get("next-cursor")
         return (dois, new_next_cursor)
-    except urllib.error.HTTPError as http_error:
-        print(http_error)
+    except urllib.error.URLError as url_error:
+        print(url_error)
         return ([], None)
 
 def related_identifiers(doi):
@@ -73,8 +73,8 @@ def related_identifiers(doi):
             if related_ids:
                 return related_ids
             return None
-    except urllib.error.HTTPError as http_error:
-        print(http_error)
+    except urllib.error.URLError as url_error:
+        print(url_error)
         return None
 
 def doi_in_figshare(doi):
@@ -91,8 +91,8 @@ def doi_in_figshare(doi):
             if data is None:
                 return False
             return len(data) > 0
-    except urllib.error.HTTPError as http_error:
-        print(http_error)
+    except urllib.error.URLError as url_error:
+        print(url_error)
         return False
 
 # main
