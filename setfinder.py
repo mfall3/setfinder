@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 """This script generates a list of datasets in figshare
-associated with crossref works from Illinois."""
-
-# utility to find datasets in figshare related to articles with creators
-# affiliated with the University of Illinois at Urbana-Champaign
-# by Colleen Fallaw at University of Illinois Urbana-Champaign 2019
+   related to articles with creators affiliated with the
+   University of Illinois at Urbana-Champaign
+   by Colleen Fallaw at University of Illinois Urbana-Champaign 2019
+"""
 
 import sys
 import os.path
