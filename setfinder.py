@@ -30,17 +30,20 @@ def process_batches(output_filename):
     """
     crossref_list, next_cursor = (crossref_batch("*"))
     if crossref_list is None:
-        sys.exit("crossref_list is None after the first call to crossref_batch")
+        LOGGER.warning("crossref_list is None after the first call to crossref_batch")
+        return None
     if next_cursor is None:
-        sys.exit("next_cursor is None after the first call to crossref_batch")
-    logger.info("next_cursor: %s", next_cursor)
+        LOGGER.warning("next_cursor is None after the first call to crossref_batch")
+        return None
+    LOGGER.info("next_cursor: %s", next_cursor)
     if not crossref_list:
         return None
     process_batch(crossref_list, output_filename)
     while (crossref_list is not None) and (next_cursor is not None):
-        logger.info("next_cursor: %s", next_cursor)
+        LOGGER.info("next_cursor: %s", next_cursor)
         crossref_list, next_cursor = (crossref_batch(next_cursor))
         if not crossref_list:
+            LOGGER.warning("crossref_list is None in loop")
             return None
         process_batch(crossref_list, output_filename)
     return None
@@ -75,18 +78,19 @@ def crossref_batch(cursor):
         with urllib.request.urlopen(url_base + url_q + urllib.parse.quote(cursor)) as url:
             data = json.loads(url.read().decode())
         if not data:
-            logger.warn("no data in crossref_batch")
+            LOGGER.warning("no data in crossref_batch")
             return([], None)
         items = data.get("message").get("items")
         if not items:
-            logger.warn("no items in crossref batch")
+            LOGGER.warning("no items in crossref batch")
             return([], None)
         for item in items:
             dois.append(item.get("DOI"))
         new_next_cursor = data.get("message").get("next-cursor")
         return (dois, new_next_cursor)
     except urllib.error.URLError as url_error:
-        logger.warn(url_error)
+        LOGGER.warning("problem fetching crossref batch for cursor: %s", cursor)
+        LOGGER.warning(url_error)
         return ([], None)
 
 def related_identifiers(doi):
@@ -99,7 +103,7 @@ def related_identifiers(doi):
     try:
         endpoint = "https://api.scholexplorer.openaire.eu/v2/Links/?sourcePid="
         related_ids = []
-        with urllib.request.urlopen(endpoint + doi) as url:
+        with urllib.request.urlopen(endpoint + urllib.parse.quote(doi)) as url:
             data = json.loads(url.read().decode())
             if data is None:
                 msg = "data was None in related_dois for " + doi
@@ -120,7 +124,8 @@ def related_identifiers(doi):
                 return related_ids
             return None
     except urllib.error.URLError as url_error:
-        logger.warn(url_error)
+        LOGGER.warning("problem with call to scholex for: %s", doi)
+        LOGGER.warning(url_error)
         return None
 
 def doi_in_figshare(doi):
@@ -132,27 +137,26 @@ def doi_in_figshare(doi):
     """
     try:
         endpoint = "https://api.figshare.com/v2/articles?doi="
-        with urllib.request.urlopen(endpoint + doi) as url:
+        with urllib.request.urlopen(endpoint + urllib.parse.quote(doi)) as url:
             data = json.loads(url.read().decode())
             if data is None:
                 return False
             return len(data) > 0
     except urllib.error.URLError as url_error:
-        logger.warn(url_error)
+        LOGGER.warning("problem with call to figshare for: %s", doi)
+        LOGGER.warning(url_error)
         return False
 
 # main
 if __name__ == '__main__':
-    
     # setup logging
     logging.basicConfig(
         filename='setfinder.log',
         level=logging.DEBUG,
-        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S',
+        format='%(asctime)s %(levelname)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M',
     )
-    logger = logging.getLogger(__name__)
-    
+    LOGGER = logging.getLogger(__name__)
     OUTPUT_FILENAME = "out.txt"
     setup(OUTPUT_FILENAME)
     process_batches(OUTPUT_FILENAME)
