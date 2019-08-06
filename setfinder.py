@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""This script generates a list of datasets in figure
+"""This script generates a list of datasets in figshare
 associated with crossref works from Illinois."""
 
 # utility to find datasets in figshare related to articles with creators
