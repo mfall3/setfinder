@@ -6,7 +6,6 @@
 """
 
 import logging
-import sys
 import os.path
 import urllib.request
 import json
@@ -70,27 +69,21 @@ def crossref_batch(cursor):
             cursor -- the cursor to use in the query to fetch batch
         return: List of dois
     """
-    try:
-        dois = []
-        url_base = "http://api.crossref.org/works?"
-        url_q = "query.affiliation=University%20of%20Illinois,%20Champaign&select=DOI&cursor="
-        with urllib.request.urlopen(url_base + url_q + urllib.parse.quote(cursor)) as url:
-            data = json.loads(url.read().decode())
-        if not data:
-            LOGGER.warning("no data in crossref_batch")
-            return([], None)
-        items = data.get("message").get("items")
-        if not items:
-            LOGGER.warning("no items in crossref batch")
-            return([], None)
-        for item in items:
-            dois.append(item.get("DOI"))
-        new_next_cursor = data.get("message").get("next-cursor")
-        return (dois, new_next_cursor)
-    except urllib.error.URLError as url_error:
-        LOGGER.warning("problem fetching crossref batch for cursor: %s", cursor)
-        LOGGER.warning(url_error)
-        return ([], None)
+
+    dois = []
+    url_base = "http://api.crossref.org/works?"
+    url_q = "query.affiliation=University%20of%20Illinois,%20Champaign&select=DOI&cursor="
+
+    data = fetch_data(url_base + url_q + urllib.parse.quote(cursor))
+    if not data:
+        return([], None)
+    items = data.get("message").get("items")
+    if not items:
+        return([], None)
+    for item in items:
+        dois.append(item.get("DOI"))
+    new_next_cursor = data.get("message").get("next-cursor")
+    return (dois, new_next_cursor)
 
 def related_identifiers(doi):
     """Fetch a list of related doi from scholex for passed in doi.
@@ -99,31 +92,25 @@ def related_identifiers(doi):
           doi -- the doi for which to fetch the related dois
         return: List of related identifiers or None
     """
-    try:
-        endpoint = "https://api.scholexplorer.openaire.eu/v2/Links/?sourcePid="
-        related_ids = []
-        with urllib.request.urlopen(endpoint + urllib.parse.quote(doi)) as url:
-            data = json.loads(url.read().decode())
-            if data is None:
-                LOGGER.warning("data was None in related_dois for %s", doi)
-                return None
-            results = data.get("result")
-            if not results:
-                return None
-            for result in results:
-                identifiers = result.get("source").get("Identifier")
-            if not identifiers:
-                return None
-            for identifier in identifiers:
-                if identifier.get("IDScheme") == "doi":
-                    related_ids.append(identifier.get("ID"))
-            if related_ids:
-                return related_ids
-            return None
-    except urllib.error.URLError as url_error:
-        LOGGER.warning("problem with call to scholex for: %s", doi)
-        LOGGER.warning(url_error)
+    endpoint = "https://api.scholexplorer.openaire.eu/v2/Links/?sourcePid="
+    related_ids = []
+    data = fetch_data(endpoint + urllib.parse.quote(doi))
+
+    if not data:
         return None
+    results = data.get("result")
+    if not results:
+        return None
+    for result in results:
+        identifiers = result.get("source").get("Identifier")
+    if not identifiers:
+        return None
+    for identifier in identifiers:
+        if identifier.get("IDScheme") == "doi":
+            related_ids.append(identifier.get("ID"))
+    if related_ids:
+        return related_ids
+    return None
 
 def doi_in_figshare(doi):
     """Determine if a given doi is in figshare.
@@ -132,17 +119,35 @@ def doi_in_figshare(doi):
           doi -- the doi for which to make the determination
         return: True if doi is found in figshare, False if it is not
     """
-    try:
-        endpoint = "https://api.figshare.com/v2/articles?doi="
-        with urllib.request.urlopen(endpoint + urllib.parse.quote(doi)) as url:
-            data = json.loads(url.read().decode())
-            if data is None:
-                return False
-            return len(data) > 0
-    except urllib.error.URLError as url_error:
-        LOGGER.warning("problem with call to figshare for: %s", doi)
-        LOGGER.warning(url_error)
+
+    endpoint = "https://api.figshare.com/v2/articles?doi="
+    data = fetch_data(endpoint + urllib.parse.quote(doi))
+    if not data:
         return False
+    return len(data) > 0
+
+def fetch_data(url_string):
+    """Fetch data from provided url
+
+        arguments:
+          url -- the url from which to fetch the data
+        return: data fetched from url
+    """
+
+    max_attempts = 10
+    current_attempt = 1
+
+    try:
+        with urllib.request.urlopen(url_string) as url:
+            data = json.loads(url.read().decode())
+        return data
+    except urllib.error.URLError as url_error:
+        current_attempt = current_attempt + 1
+        if current_attempt > max_attempts:
+            LOGGER.warning("Failed max attempts for url_string: %s", url_string)
+            LOGGER.warning(url_error)
+            return None
+        return fetch_data(url_string)
 
 # main
 if __name__ == '__main__':
