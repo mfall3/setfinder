@@ -35,7 +35,6 @@ def process_batches(output_filename):
     if next_cursor is None:
         LOGGER.warning("next_cursor is None after the first call to crossref_batch")
         return None
-    LOGGER.info("next_cursor: %s", next_cursor)
     if not crossref_list:
         return None
     process_batch(crossref_list, output_filename)
