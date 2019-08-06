@@ -38,7 +38,7 @@ def process_batches(output_filename):
         sys.exit()
     process_batch(crossref_list, output_filename)
     while (crossref_list is not None) and (next_cursor is not None):
-        print(format("next_cursor: %s", next_cursor))
+        print("next_cursor: " + next_cursor)
         crossref_list, next_cursor = (crossref_batch(next_cursor))
         if not crossref_list:
             return None
