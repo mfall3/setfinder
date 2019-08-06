@@ -5,6 +5,7 @@
    by Colleen Fallaw at University of Illinois Urbana-Champaign 2019
 """
 
+import logging
 import sys
 import os.path
 import urllib.request
@@ -32,12 +33,12 @@ def process_batches(output_filename):
         sys.exit("crossref_list is None after the first call to crossref_batch")
     if next_cursor is None:
         sys.exit("next_cursor is None after the first call to crossref_batch")
-    print("next_cursor: %s", next_cursor)
+    logger.info("next_cursor: %s", next_cursor)
     if not crossref_list:
-        sys.exit()
+        return None
     process_batch(crossref_list, output_filename)
     while (crossref_list is not None) and (next_cursor is not None):
-        print("next_cursor: " + next_cursor)
+        logger.info("next_cursor: %s", next_cursor)
         crossref_list, next_cursor = (crossref_batch(next_cursor))
         if not crossref_list:
             return None
@@ -73,22 +74,19 @@ def crossref_batch(cursor):
         url_q = "query.affiliation=University%20of%20Illinois,%20Champaign&select=DOI&cursor="
         with urllib.request.urlopen(url_base + url_q + urllib.parse.quote(cursor)) as url:
             data = json.loads(url.read().decode())
-        if data is None:
-            msg = "data was None in crossref_batch"
-            sys.exit(msg)
+        if not data:
+            logger.warn("no data in crossref_batch")
+            return([], None)
         items = data.get("message").get("items")
-        if items is None:
-            msg = "items was None in crossref_batch"
-            sys.exit(msg)
         if not items:
-            print("no items in crossref batch")
-            return None
+            logger.warn("no items in crossref batch")
+            return([], None)
         for item in items:
             dois.append(item.get("DOI"))
         new_next_cursor = data.get("message").get("next-cursor")
         return (dois, new_next_cursor)
     except urllib.error.URLError as url_error:
-        print(url_error)
+        logger.warn(url_error)
         return ([], None)
 
 def related_identifiers(doi):
@@ -122,7 +120,7 @@ def related_identifiers(doi):
                 return related_ids
             return None
     except urllib.error.URLError as url_error:
-        print(url_error)
+        logger.warn(url_error)
         return None
 
 def doi_in_figshare(doi):
@@ -140,11 +138,21 @@ def doi_in_figshare(doi):
                 return False
             return len(data) > 0
     except urllib.error.URLError as url_error:
-        print(url_error)
+        logger.warn(url_error)
         return False
 
 # main
 if __name__ == '__main__':
+    
+    # setup logging
+    logging.basicConfig(
+        filename='setfinder.log',
+        level=logging.DEBUG,
+        format='%(asctime)s.%(msecs)03d %(levelname)s %(module)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S',
+    )
+    logger = logging.getLogger(__name__)
+    
     OUTPUT_FILENAME = "out.txt"
     setup(OUTPUT_FILENAME)
     process_batches(OUTPUT_FILENAME)
