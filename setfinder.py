@@ -6,11 +6,60 @@ associated with crossref works from Illinois."""
 # affiliated with the University of Illinois at Urbana-Champaign
 # by Colleen Fallaw at University of Illinois Urbana-Champaign 2019
 
-import logging
 import sys
 import os.path
 import urllib.request
 import json
+
+def setup(output_filename):
+    """Set up the csv file for output result.
+        arguments:
+            output_filename -- the filename to use for output
+        return: None
+    """
+    if not os.path.exists(output_filename):
+        with open(output_filename, "w") as outfile:
+            outfile.write("crossref_doi,figshare_doi\n")
+        outfile.close()
+
+def process_batches(output_filename):
+    """Process all batches of crossref_dois.
+        arguments:
+            output_filename -- the filename to use for output
+        return: None
+    """
+    crossref_list, next_cursor = (crossref_batch("*"))
+    if crossref_list is None:
+        sys.exit("crossref_list is None after the first call to crossref_batch")
+    if next_cursor is None:
+        sys.exit("next_cursor is None after the first call to crossref_batch")
+    print("next_cursor: %s", next_cursor)
+    if not crossref_list:
+        sys.exit()
+    process_batch(crossref_list, output_filename)
+    while (crossref_list is not None) and (next_cursor is not None):
+        print(format("next_cursor: %s", next_cursor))
+        crossref_list, next_cursor = (crossref_batch(next_cursor))
+        if not crossref_list:
+            return None
+        process_batch(crossref_list, output_filename)
+    return None
+
+def process_batch(crossref_list, output_filename):
+    """Process a batch of crossref_dois.
+        arguments:
+            crossref_list -- a list of dois from crossref to process
+            output_filename -- the filename to use for output
+        return: None
+    """
+    for crossref_doi in crossref_list:
+        related_dois = related_identifiers(crossref_doi)
+        if related_dois is not None:
+            for related_identifier in related_dois:
+                if doi_in_figshare(related_identifier):
+                    with open(output_filename, "a") as outfile:
+                        outfile.write(crossref_doi + "," + related_identifier + "\n")
+                    outfile.close()
 
 def crossref_batch(cursor):
     """Fetch a batch of crossref records for works with creators from Illinois.
@@ -97,40 +146,6 @@ def doi_in_figshare(doi):
 
 # main
 if __name__ == '__main__':
-    logging.basicConfig(filename='setfinder.log',
-                        level=logging.DEBUG,
-                        format='%(asctime)s %(message)s')
-    logging.info('Starting setfinder.py ...')
     OUTPUT_FILENAME = "out.txt"
-    if not os.path.exists(OUTPUT_FILENAME):
-        with open(OUTPUT_FILENAME, "w") as f:
-            f.write("crossref_doi,figshare_doi")
-        f.close()
-    CROSSREF_LIST, NEXT_CURSOR = (crossref_batch("*"))
-    if CROSSREF_LIST is None:
-        sys.exit("crossref_list is None after the first call to crossref_batch")
-    if NEXT_CURSOR is None:
-        sys.exit("next_cursor is None after the first call to crossref_batch")
-    logging.info("next_cursor: %s", NEXT_CURSOR)
-    if CROSSREF_LIST:
-        sys.exit()
-    for crossref_doi in CROSSREF_LIST:
-        related_dois = related_identifiers(crossref_doi)
-        if related_dois is not None:
-            for related_identifier in related_dois:
-                if doi_in_figshare(related_identifier):
-                    with open(OUTPUT_FILENAME, "a") as f:
-                        f.write(crossref_doi + "," + related_identifier)
-                    f.close()
-                logging.info("crossref: " + crossref_doi + " figshare: " + related_identifier)
-    while (CROSSREF_LIST is not None) and (NEXT_CURSOR is not None):
-        logging.info("next_cursor: %s", NEXT_CURSOR)
-        CROSSREF_LIST, NEXT_CURSOR = (crossref_batch(NEXT_CURSOR))
-        if CROSSREF_LIST:
-            sys.exit()
-        for crossref_doi in CROSSREF_LIST:
-            related_dois = related_identifiers(crossref_doi)
-        if related_dois is not None:
-            for related_identifier in related_dois:
-                if doi_in_figshare(related_identifier):
-                    logging.info("crossref: " + crossref_doi + " figshare: " + related_identifier)
+    setup(OUTPUT_FILENAME)
+    process_batches(OUTPUT_FILENAME)
