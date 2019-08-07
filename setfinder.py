@@ -126,28 +126,29 @@ def doi_in_figshare(doi):
         return False
     return len(data) > 0
 
-def fetch_data(url_string):
+def fetch_data(url_string, attempt_number = 1):
     """Fetch data from provided url
 
         arguments:
           url -- the url from which to fetch the data
+          attempt_number
         return: data fetched from url
     """
 
     max_attempts = 10
-    current_attempt = 1
-
+        
     try:
         with urllib.request.urlopen(url_string) as url:
             data = json.loads(url.read().decode())
         return data
     except urllib.error.URLError as url_error:
-        current_attempt = current_attempt + 1
-        if current_attempt > max_attempts:
+        LOGGER.warning("Failed, trying again for url_string: %s", url_string)
+        next_attempt = attempt_number + 1
+        if next_attempt > max_attempts:
             LOGGER.warning("Failed max attempts for url_string: %s", url_string)
             LOGGER.warning(url_error)
             return None
-        return fetch_data(url_string)
+        return fetch_data(url_string, next_attempt)
 
 # main
 if __name__ == '__main__':
