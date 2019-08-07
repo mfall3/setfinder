@@ -8,7 +8,6 @@
 import logging
 import os.path
 import requests
-import json
 
 def setup(output_filename):
     """Set up the csv file for output result.
@@ -128,7 +127,7 @@ def doi_in_figshare(doi):
         return False
     return len(data) > 0
 
-def fetch_data(url_string, attempt_number = 1):
+def fetch_data(url_string, attempt_number=1):
     """Fetch data from provided url
 
         arguments:
@@ -138,7 +137,6 @@ def fetch_data(url_string, attempt_number = 1):
     """
 
     max_attempts = 10
-        
     try:
         data = None
         response = requests.get(url_string, headers={"Accept": "application/json"})
@@ -149,7 +147,7 @@ def fetch_data(url_string, attempt_number = 1):
         if not data:
             return None
         return data
-    except requests.exceptions.RequestException as request_exception: 
+    except requests.exceptions.RequestException as request_exception:
         LOGGER.warning("Failed, trying again for url_string: %s", url_string)
         next_attempt = attempt_number + 1
         if next_attempt > max_attempts:
