@@ -76,9 +76,11 @@ def crossref_batch(cursor):
 
     data = fetch_data(url_base + url_q + cursor)
     if not data:
+        LOGGER.warning("not data for cursor: %s", cursor)
         return([], None)
     items = data.get("message").get("items")
     if not items:
+        LOGGER.warning("not items for curosr: %s", cursor)
         return([], None)
     for item in items:
         dois.append(item.get("DOI"))
