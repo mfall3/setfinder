@@ -7,7 +7,7 @@
 
 import logging
 import os.path
-import urllib.request
+import requests
 import json
 
 def setup(output_filename):
@@ -72,9 +72,9 @@ def crossref_batch(cursor):
 
     dois = []
     url_base = "http://api.crossref.org/works?"
-    url_q = "query.affiliation=University%20of%20Illinois,%20Champaign&select=DOI&cursor="
+    url_q = "query.affiliation=University of Illinois, Champaign&select=DOI&cursor="
 
-    data = fetch_data(url_base + url_q + urllib.parse.quote(cursor))
+    data = fetch_data(url_base + url_q + cursor)
     if not data:
         return([], None)
     items = data.get("message").get("items")
@@ -94,7 +94,7 @@ def related_identifiers(doi):
     """
     endpoint = "https://api.scholexplorer.openaire.eu/v2/Links/?sourcePid="
     related_ids = []
-    data = fetch_data(endpoint + urllib.parse.quote(doi))
+    data = fetch_data(endpoint + doi)
 
     if not data:
         return None
@@ -121,7 +121,7 @@ def doi_in_figshare(doi):
     """
 
     endpoint = "https://api.figshare.com/v2/articles?doi="
-    data = fetch_data(endpoint + urllib.parse.quote(doi))
+    data = fetch_data(endpoint + doi)
     if not data:
         return False
     return len(data) > 0
@@ -138,15 +138,21 @@ def fetch_data(url_string, attempt_number = 1):
     max_attempts = 10
         
     try:
-        with urllib.request.urlopen(url_string) as url:
-            data = json.loads(url.read().decode())
+        data = None
+        response = requests.get(url_string, headers={"Accept": "application/json"})
+        if not response:
+            LOGGER.warning("not response")
+            return None
+        data = response.json()
+        if not data:
+            return None
         return data
-    except urllib.error.URLError as url_error:
+    except requests.exceptions.RequestException as request_exception: 
         LOGGER.warning("Failed, trying again for url_string: %s", url_string)
         next_attempt = attempt_number + 1
         if next_attempt > max_attempts:
             LOGGER.warning("Failed max attempts for url_string: %s", url_string)
-            LOGGER.warning(url_error)
+            LOGGER.warning(request_exception)
             return None
         return fetch_data(url_string, next_attempt)
 
@@ -155,7 +161,7 @@ if __name__ == '__main__':
     # setup logging
     logging.basicConfig(
         filename='setfinder.log',
-        level=logging.DEBUG,
+        level=logging.INFO,
         format='%(asctime)s %(levelname)s - %(funcName)s: %(message)s',
         datefmt='%Y-%m-%d %H:%M',
     )
