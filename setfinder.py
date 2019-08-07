@@ -70,10 +70,10 @@ def crossref_batch(cursor):
     """
 
     dois = []
-    url_base = "http://api.crossref.org/works?"
-    url_q = "query.affiliation=University of Illinois, Champaign&select=DOI&cursor="
+    endpoint = "http://api.crossref.org/works"
+    params = "query.affiliation=Urbana&select=DOI&cursor=" + cursor
 
-    data = fetch_data(url_base + url_q + cursor)
+    data = fetch_data(endpoint, params)
     if not data:
         LOGGER.warning("not data for cursor: %s", cursor)
         return([], None)
@@ -93,9 +93,10 @@ def related_identifiers(doi):
           doi -- the doi for which to fetch the related dois
         return: List of related identifiers or None
     """
-    endpoint = "https://api.scholexplorer.openaire.eu/v2/Links/?sourcePid="
+    endpoint = "https://api.scholexplorer.openaire.eu/v2/Links/"
+    params = "sourcePid=" + doi
     related_ids = []
-    data = fetch_data(endpoint + doi)
+    data = fetch_data(endpoint, params)
 
     if not data:
         return None
@@ -121,13 +122,14 @@ def doi_in_figshare(doi):
         return: True if doi is found in figshare, False if it is not
     """
 
-    endpoint = "https://api.figshare.com/v2/articles?doi="
-    data = fetch_data(endpoint + doi)
+    endpoint = "https://api.figshare.com/v2/articles"
+    params = "doi=" + doi
+    data = fetch_data(endpoint, params)
     if not data:
         return False
     return len(data) > 0
 
-def fetch_data(url_string, attempt_number=1):
+def fetch_data(endpoint, params, attempt_number=1):
     """Fetch data from provided url
 
         arguments:
@@ -139,7 +141,8 @@ def fetch_data(url_string, attempt_number=1):
     max_attempts = 10
     try:
         data = None
-        response = requests.get(url_string, headers={"Accept": "application/json"})
+        response = requests.get(endpoint, params, headers={"Accept": "application/json"})
+        LOGGER.info(response.text)
         if not response:
             LOGGER.warning("not response")
             return None
@@ -148,13 +151,13 @@ def fetch_data(url_string, attempt_number=1):
             return None
         return data
     except requests.exceptions.RequestException as request_exception:
-        LOGGER.warning("Failed, trying again for url_string: %s", url_string)
+        LOGGER.warning("Failed, trying again for url: %s", endpoint + "?" + params)
         next_attempt = attempt_number + 1
         if next_attempt > max_attempts:
-            LOGGER.warning("Failed max attempts for url_string: %s", url_string)
+            LOGGER.warning("Failed max attempts for url: %s", endpoint + "?" + params)
             LOGGER.warning(request_exception)
             return None
-        return fetch_data(url_string, next_attempt)
+        return fetch_data(endpoint, params, next_attempt)
 
 # main
 if __name__ == '__main__':
