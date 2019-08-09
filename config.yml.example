@@ -1,0 +1,7 @@
+log_path: setfinder.log
+database_path: setfinder.db
+initial_cursor: '*'
+crossref_affiliations_path: crossref_affiliations.csv
+crossref_dois_path: crossref_dois.csv
+related_dois_path: related_dois.csv
+affiliation_keyword: spam

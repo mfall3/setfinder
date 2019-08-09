@@ -1,2 +1,10 @@
+# local work product files
 out.txt
 setfinder.log
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# local configuration files
+config.yml
