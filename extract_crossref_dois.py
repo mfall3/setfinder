@@ -7,12 +7,7 @@
 
 import sys
 import logging
-import urllib.request
-import urllib.parse
-import time
-import json
 import yaml
-
 
 def main():
     """Process an ordered pipe-delimited list that starts with crossref dois
@@ -22,18 +17,17 @@ def main():
     outpath = APP_CONFIG["crossref_dois_path"]
     doi_set = set()
     with open(inpath) as infile:
-       line = infile.readline()
-       while line:
-           row = line.split("|", 3)
-           doi = row[0]
-           if doi[:3] == "10.":
-               doi_set.add(doi)
-           line = infile.readline()
-    doi_list = list(doi_set)      
-    with open(outpath, "w+") as outfile:
-        for doi in doi_list:
-            outfile.write('%s\n' % doi)
-    
+        line = infile.readline()
+        while line:
+            row = line.split("|", 3)
+            doi = row[0]
+            if doi[:3] == "10.":
+                doi_set.add(doi)
+            line = infile.readline()
+        doi_list = list(doi_set)
+        with open(outpath, "w+") as outfile:
+            for doi in doi_list:
+                outfile.write('%s\n' % doi)
 # main
 if __name__ == '__main__':
     # load config
