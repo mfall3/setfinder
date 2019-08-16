@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# fetch_crossref_works_by_affiliation.py
 """This script generates a list of works in crossref
    with creators affiliated with the
    University of Illinois at Urbana-Champaign
