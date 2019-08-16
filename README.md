@@ -10,7 +10,7 @@ There are a series of scripts because things can go wrong along the way, and it 
 
 I like conda for this, but installing and configuring python is out of scope for the documentation for this guide.
 
-####Packages in my environment:
+#### Packages in my environment:
 ```
   # Name                    Version                   Build  Channel
   asn1crypto                0.24.0                   py37_0
