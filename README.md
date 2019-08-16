@@ -7,8 +7,11 @@ These tools are not perfect, in part because metadata is inconsistently associat
 There are a series of scripts because things can go wrong along the way, and it may be necessary to somewhat manually recover and retry for one step before starting the next one. For example, if there is a timeout or some other error getting one batch of crossref dois, you can get the most recent cursor and use that to try again without restarting from the beginning. Also, this would make it easier to use the script for one of the steps on information gathered some other way.
 
 ### 0.) Install and configure python 3, install packages
+
 I like conda for this, but installing and configuring python is out of scope for the documentation for this guide.
+
 ####Packages in my environment:
+```
   # Name                    Version                   Build  Channel
   asn1crypto                0.24.0                   py37_0
   astroid                   2.2.5                    py37_0
@@ -46,7 +49,7 @@ I like conda for this, but installing and configuring python is out of scope for
   xz                        5.2.4                h1de35cc_4
   yaml                      0.1.7                hc338f04_2
   zlib                      1.2.11               h1de35cc_3
-
+```
 ### 1.) Customize an initial configuration.
 Copy config.yml.example to config.yml in working directory. Customizable values can be edited in config.yml. Most of the defaults are reasonable, and by default the paths are filenames for the current directory, but the default affiliation keyword spam is probably not what you want. For example, Urbana was an effective keyword for the University of Illinois at Urbana-Champaign.
 
