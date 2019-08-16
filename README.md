@@ -1,5 +1,6 @@
 ## setfinder
-# DOES NOT WORK YET
+# INCOMPLETE
+### So far, just gets author affiliation information for crossref authors with keyword in affiliation.
 *set of scripts to help find datasets related to articles by authors with a given affiliation*
 
 These tools are not perfect, in part because metadata is inconsistently associated with dois, but this approach produced human-usable spreadsheets toward answering the question: "Where are datasets associated with scholary works with authors associated with my institution?" for us at the University of Illinois at Urbana-Champaign.
@@ -7,7 +8,7 @@ These tools are not perfect, in part because metadata is inconsistently associat
 There are a series of scripts because things can go wrong along the way, and it may be necessary to somewhat manually recover and retry for one step before starting the next one. For example, if there is a timeout or some other error getting one batch of crossref dois, you can get the most recent cursor and use that to try again without restarting from the beginning. Also, this would make it easier to use the script for one of the steps on information gathered some other way.
 
 ### 1.) Customize an initial configuration.
-Customizable values can be edited in setfinder.yml. Most of the defaults are reasonable, and by default the paths are filenames for the current directory, but the default affiliation keyword spam is probably not what you want. For example, Urbana was an effective keyword for the University of Illinois at Urbana-Champaign.
+Copy config.yml.example to config.yml in working directory. Customizable values can be edited in config.yml. Most of the defaults are reasonable, and by default the paths are filenames for the current directory, but the default affiliation keyword spam is probably not what you want. For example, Urbana was an effective keyword for the University of Illinois at Urbana-Champaign.
 
 ### 2.) Fetch crossref dois with affiliated authors.
 
