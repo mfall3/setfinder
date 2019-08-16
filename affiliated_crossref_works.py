@@ -9,7 +9,6 @@
 
 import sys
 import logging
-import os.path
 import urllib.request
 import urllib.parse
 import time
@@ -23,40 +22,93 @@ def process_batches(output_filename, keyword):
             keyword -- the affiliation keyword use in query
         return: None
     """
-    initial_cursor = APP_CONFIG["initial_cursor"]
     expected_result_count = result_count(keyword)
     if not expected_result_count:
         LOGGER.warning("no results expected for keyword")
         return None
-    LOGGER.warning("expected number of results: %s", str(expected_result_count))
-    if expected_result_count > 10000:
-        process_cursor_batches(output_filename, keyword)
+    LOGGER.info("expected number of results: %s", str(expected_result_count))
+    if expected_result_count > MAX_OFFSET:
+        process_cursor_batches(output_filename, keyword, expected_result_count)
     else:
-        process_offset_batches(output_filename, keyword)
-        
-def process_cursor_batches(output_filename, keyword):
-    crossref_list, next_cursor = (crossref_batch(APP_CONFIG["initial_cursor"], keyword))
-    if not crossref_list is None:
-        LOGGER.warning("no crossref_list is the first call to crossref_batch")
+        process_offset_batches(output_filename, keyword, expected_result_count)
+    return None
+def process_cursor_batches(output_filename, keyword, expected_count):
+    """Process all batches of crossref_dois for keyword, using cursor method.
+        arguments:
+            output_filename -- the filename to use for output
+            keyword -- the affiliation keyword use in query
+        return: None
+    """
+    cumulative_result_count = 0
+    num_rows = BATCH_SIZE
+    next_cursor = APP_CONFIG["initial_cursor"]
+    crossref_list, next_cursor = (crossref_cursor_batch(next_cursor, num_rows, keyword))
+    cumulative_result_count = cumulative_result_count + num_rows
+    if not crossref_list:
+        LOGGER.warning("no crossref_list after the first call to crossref_batch")
         return None
     if next_cursor is None:
         LOGGER.warning("next_cursor is None after the first call to crossref_batch")
         return None
     process_batch(crossref_list, output_filename)
     while (crossref_list is not None) and (next_cursor is not None):
+        rows_to_go = expected_count - cumulative_result_count
+        if rows_to_go < 1:
+            LOGGER.info("Processing complete.")
+            break
+        if rows_to_go < BATCH_SIZE:
+            num_rows = rows_to_go
         # to avoid rate limiting interfereing with results
         time.sleep(5)
         LOGGER.info("next_cursor: %s", next_cursor)
-        crossref_list, next_cursor = (crossref_batch(next_cursor))
+        crossref_list, next_cursor = (crossref_cursor_batch(next_cursor, num_rows, keyword))
+        if not crossref_list:
+            LOGGER.warning("crossref_list is None in loop")
+            break
+        process_batch(crossref_list, output_filename)
+        cumulative_result_count = cumulative_result_count + num_rows
+    return None
+
+def process_offset_batches(output_filename, keyword, expected_count):
+    """Process all batches of crossref_dois for keyword, using offset method.
+        arguments:
+            output_filename -- the filename to use for output
+            keyword -- the affiliation keyword use in query
+        return: None
+    """
+    cumulative_result_count = 0
+    if expected_count < BATCH_SIZE:
+        num_rows = expected_count
+    else:
+        num_rows = BATCH_SIZE
+    result_offset = 0
+    crossref_list = (crossref_offset_batch(result_offset, num_rows, keyword))
+    if not crossref_list:
+        LOGGER.warning("no crossref_list after the first call to crossref_batch")
+        return None
+    process_batch(crossref_list, output_filename)
+    cumulative_result_count = cumulative_result_count + num_rows
+    result_offset = cumulative_result_count
+    while (crossref_list is not None) and (result_offset is not None):
+        if result_offset >= expected_count:
+            break
+        rows_to_go = expected_count - cumulative_result_count
+        if rows_to_go < 1:
+            LOGGER.info("Processing complete.")
+            break
+        if rows_to_go < BATCH_SIZE:
+            num_rows = rows_to_go
+        # to avoid rate limiting interfereing with results
+        time.sleep(5)
+        LOGGER.info("result_offset: %s", str(result_offset))
+        crossref_list, result_offset = (crossref_offset_batch(result_offset, num_rows, keyword))
         if not crossref_list:
             LOGGER.warning("crossref_list is None in loop")
             return None
         process_batch(crossref_list, output_filename)
+        cumulative_result_count = cumulative_result_count + num_rows
+        result_offset = cumulative_result_count
     return None
-
-def process_offset_batches(output_filename, keyword, expected_result_count):
-    #TODO
-    pass
 
 def process_batch(crossref_list, output_filename):
     """Process a batch of crossref_dois.
@@ -66,11 +118,10 @@ def process_batch(crossref_list, output_filename):
             output_filename -- the filename to use for output
         return: None
     """
-    for crossref_tuple in crossref_list:
+    for tup in crossref_list:
         with open(output_filename, "a") as outfile:
-            outfile.write(crossref_tuple[0] + "|" + crossref_tuple[1] + "|" + crossref_tuple[2] + "\n")
+            outfile.write(tup[0] + "|" + tup[1] + "|" + tup[2] + "\n")
         outfile.close()
-        
 def result_count(keyword):
     """Get the count total expected number of results.
         arguments:
@@ -82,9 +133,9 @@ def result_count(keyword):
     url_string = endpoint + query
     result = fetch_data(url_string)
     if not result:
+        LOGGER.warning("Not result in result_count")
         return None
     return result.get("message").get("total-results")
-    
 def crossref_result_to_list(result):
     """Turn the json result of fetching a batch of crossref records into list of tuples.
 
@@ -107,22 +158,27 @@ def crossref_result_to_list(result):
         if not authors:
             continue
         for author in authors:
+            sequence = author.get("sequence")
+            if sequence != "first":
+                continue
             family_name = author.get("family")
             if not family_name:
-                LOGGER.warning("no family name for author in item")
                 continue
             given_name = author.get("given")
             if not given_name:
-                LOGGER.warning("no given name for author in item")
                 continue
             name = given_name + " " + family_name
             affiliations = author.get("affiliation")
             if not affiliations:
                 continue
-            tuples.append((doi, name, affiliations[0].get("name")))
-    return tuples      
+            for affiliation in affiliations:
+                affiliation_name = affiliation.get("name")
+                affiliation_name = affiliation_name.replace("\r", " ")
+                affiliation_name = affiliation_name.replace("\n", " ")
+                tuples.append((doi, name, affiliation_name))
+    return tuples
 
-def crossref_offset_batch(offset, keyword):
+def crossref_offset_batch(offset, num_rows, keyword):
     """Fetch a batch of crossref records for works with creators from Illinois.
        Use a cursor because total results is higher than 10K
 
@@ -132,13 +188,15 @@ def crossref_offset_batch(offset, keyword):
         return: List of tuples(crossref_doi, author_name, author_affiliation)
     """
     endpoint = "http://api.crossref.org/works"
-    query = "?rows=1000&query.affiliation=" + keyword + "&select=DOI,author&offset=" + str(offset)
+    query = "?query.affiliation=" + keyword + \
+            "&select=DOI,author&rows=" + str(num_rows) + \
+            "&offset=" + str(offset)
     url_string = endpoint + query
     result = fetch_data(url_string)
     tuples = crossref_result_to_list(result)
     return tuples
-    
-def crossref_cursor_batch(cursor, keyword):
+
+def crossref_cursor_batch(cursor, num_rows, keyword):
     """Fetch a batch of crossref records for works with creators from Illinois.
        Use a cursor because total results is higher than 10K
 
@@ -150,7 +208,9 @@ def crossref_cursor_batch(cursor, keyword):
 
     encoded_cursor = cursor.replace("+", "%2B")
     endpoint = "http://api.crossref.org/works"
-    query = "?rows=1000&query.affiliation=" + keyword + "&select=DOI,author&cursor=" + encoded_cursor
+    query = "?query.affiliation=" + keyword + \
+            "&select=DOI,author&rows=" + str(num_rows) + \
+            "&cursor=" + encoded_cursor
     url_string = endpoint + query
     result = fetch_data(url_string)
     tuples = crossref_result_to_list(result)
@@ -165,7 +225,6 @@ def fetch_data(url_string):
           attempt_number
         return: data fetched from url
     """
-
     try:
         data = None
         with urllib.request.urlopen(url_string) as url:
@@ -180,7 +239,9 @@ def fetch_data(url_string):
         return None
 
 def main():
-    #TODO validate inputs
+    """Sets global constants and initiates processing of
+       batches of crossref results
+    """
     output_filename = APP_CONFIG["crossref_affiliations_path"]
     keyword = APP_CONFIG["affiliation_keyword"]
     process_batches(output_filename, keyword)
@@ -194,13 +255,14 @@ if __name__ == '__main__':
         except yaml.YAMLError as yaml_error:
             print(yaml_error)
             sys.exit("could not load config.yaml file")
-    
     # setup logging
     logging.basicConfig(
-        filename = APP_CONFIG["log_path"],
-        level = logging.INFO,
-        format = '%(asctime)s %(levelname)s - %(funcName)s: %(message)s',
-        datefmt = '%Y-%m-%d %H:%M',
+        filename=APP_CONFIG["log_path"],
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s - %(funcName)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M',
     )
     LOGGER = logging.getLogger(__name__)
+    BATCH_SIZE = APP_CONFIG["batch_size"]
+    MAX_OFFSET = 10000
     main()
